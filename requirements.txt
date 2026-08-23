@@ -1,10 +1,7 @@
-pyrogram
-TgCrypto
-pyromod
+pyrogram==2.0.106
+TgCrypto==1.2.5
+pyromod==3.0.0
 pymongo
 dnspython
 aiohttp
-
 humanize
-
-
