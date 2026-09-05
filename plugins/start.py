@@ -5,7 +5,7 @@ from pyrogram.types import Message, InlineKeyboardMarkup, InlineKeyboardButton, 
 from pyrogram.errors import FloodWait, UserIsBlocked, InputUserDeactivated
 from bot import Bot
 from config import ADMINS, FORCE_MSG, START_MSG, CUSTOM_CAPTION, DISABLE_CHANNEL_BUTTON, PROTECT_CONTENT, FILE_AUTO_DELETE
-from helper_func import subscribed, encode, decode, get_messages
+from helper_func import subscribed, encode, decode, get_messages, safe_copy_message
 from database.database import add_user, del_user, full_userbase, present_user
 
 madflixofficials = FILE_AUTO_DELETE
@@ -75,19 +75,20 @@ async def start_command(client: Client, message: Message):
             else:
                 reply_markup = None
 
-            try:
-                madflix_msg = await msg.copy(chat_id=message.from_user.id, caption = caption, parse_mode = ParseMode.HTML, reply_markup = reply_markup, protect_content=PROTECT_CONTENT)
-                # await asyncio.sleep(0.5)
+            madflix_msg = await safe_copy_message(
+                msg,
+                chat_id=message.from_user.id,
+                caption=caption,
+                parse_mode=ParseMode.HTML,
+                reply_markup=reply_markup,
+                protect_content=PROTECT_CONTENT,
+            )
+            if madflix_msg is not None:
                 madflix_msgs.append(madflix_msg)
-                
-            except FloodWait as e:
-                await asyncio.sleep(e.x)
-                madflix_msg = await msg.copy(chat_id=message.from_user.id, caption = caption, parse_mode = ParseMode.HTML, reply_markup = reply_markup, protect_content=PROTECT_CONTENT)
-                madflix_msgs.append(madflix_msg)
-                
-            except:
-                pass
 
+        if not madflix_msgs:
+            await message.reply_text("Sorry, none of those files could be sent (they may be missing or empty).")
+            return
 
         k = await client.send_message(chat_id = message.from_user.id, text=f"<b>❗️ <u>IMPORTANT</u> ❗️</b>\n\nThis Video / File Will Be Deleted In {file_auto_delete} (Due To Some Issues).\n\n📌")
 
@@ -187,21 +188,19 @@ async def send_text(client: Bot, message: Message):
         pls_wait = await message.reply("<i>Broadcasting Message.. This will Take Some Time</i>")
         for chat_id in query:
             try:
-                await broadcast_msg.copy(chat_id)
-                successful += 1
-            except FloodWait as e:
-                await asyncio.sleep(e.x)
-                await broadcast_msg.copy(chat_id)
-                successful += 1
+                sent = await safe_copy_message(broadcast_msg, chat_id)
+                if sent is not None:
+                    successful += 1
+                else:
+                    unsuccessful += 1
             except UserIsBlocked:
                 await del_user(chat_id)
                 blocked += 1
             except InputUserDeactivated:
                 await del_user(chat_id)
                 deleted += 1
-            except:
+            except Exception:
                 unsuccessful += 1
-                pass
             total += 1
         
         status = f"""<b><u>Broadcast Completed</u></b>
